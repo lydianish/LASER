@@ -50,7 +50,7 @@ class Eval:
         self.encoder_args = {
             k: v
             for k, v in args._get_kwargs()
-            if k in ["max_sentences", "max_tokens", "cpu", "sort_kind", "verbose"]
+            if k in ["max_sentences", "max_tokens", "cpu", "sort_kind", "verbose", "vocab_file"]
         }
         self.src_bpe_codes = args.src_bpe_codes
         self.tgt_bpe_codes = args.tgt_bpe_codes
@@ -82,6 +82,7 @@ class Eval:
         self.buffer_size = args.buffer_size
         self.fp16 = args.fp16
         self.margin = args.margin
+        self.output_dir = args.output_dir
 
     def _embed(
         self, tmpdir, langs, encoder, spm_model, bpe_codes, tgt_aug_langs=[]
@@ -183,20 +184,23 @@ class Eval:
                 f"{len(combs)}",
             ]
         )
-        print(
-            tabulate(
-                outputs,
-                tablefmt="psql",
-                headers=[
+        df = pandas.DataFrame(outputs, columns=[
                     "dataset",
                     "src-tgt",
                     "xsim" + ("(++)" if tgt_aug_langs else ""),
                     "nbex",
-                ],
+                ])
+        df.to_csv(os.path.join(self.output_dir, "error_matrix_" + ("xsimpp.csv" if tgt_aug_langs else "xsim.csv")))
+        print(
+            tabulate(
+                df,
+                tablefmt="psql",
+                headers=df.columns
             )
         )
         for tgt_aug_lang in tgt_aug_langs:
             df = pandas.DataFrame.from_dict(aug_df[tgt_aug_lang]).fillna(0).T
+            df.to_csv(os.path.join(self.output_dir, "error_matrix_xsimpp_augmented.csv"))
             print(
                 f"\nAbsolute error under augmented transformations for: {tgt_aug_lang}"
             )
@@ -222,6 +226,7 @@ class Eval:
                     err_matrix[i1, i2] = 100 * err / nbex
         df = pandas.DataFrame(err_matrix, columns=langs, index=langs)
         df.loc["avg"] = df.sum() / float(df.shape[0] - 1)  # exclude diagonal in average
+        df.to_csv(os.path.join(self.output_dir, "error_matrix_xsim_nway.csv"))
         print(f"\n{tabulate(df, langs, floatfmt='.2f', tablefmt='grid')}\n\n")
         print(f"Global average: {df.loc['avg'].mean():.2f}")
 
@@ -376,6 +381,13 @@ if __name__ == "__main__":
         default=1024,
         help="Embedding dimension for encoders",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Detailed output")
+    parser.add_argument(
+        "--vocab-file", 
+        type=str, 
+        default=None, 
+        help="Use specified vocab file for encoding"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Detailed output")
+    parser.add_argument("--output-dir", type=str, default=None, help="Directory to save output file")
     args = parser.parse_args()
     run_eval(args)

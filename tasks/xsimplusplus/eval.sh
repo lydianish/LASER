@@ -66,8 +66,8 @@ fi
 download "laser2.spm" $mdir
 download "laser2.cvocab" $mdir
 
-corpus_part="devtest" 
-corpus="flores200" 
+corpus_part="dev" 
+corpus="flores200"
 
 # download flores200 augmented data (eng_Latn)
 s3="https://dl.fbaipublicfiles.com/nllb/laser/xsimplusplus"
@@ -89,4 +89,5 @@ python3 $LASER/source/eval.py                \
     --src-langs afr_Latn,fin_Latn,fra_Latn,hin_Deva,tha_Thai      \
     --tgt-langs eng_Latn \
     --tgt-aug-langs eng_Latn \
+    --output-dir /home/lnishimw/scratch/LASER/tasks/xsimplusplus \
     --verbose 

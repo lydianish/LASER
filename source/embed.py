@@ -41,6 +41,9 @@ from fairseq.models.transformer import (
 )
 from fairseq.data.dictionary import Dictionary
 from fairseq.modules import LayerNorm
+from examples.laser.laser_src import laser_transformer, character_cnn
+
+LASER_EMBED_DIM = 1024
 
 SPACE_NORMALIZER = re.compile(r"\s+")
 Batch = namedtuple("Batch", "srcs tokens lengths")
@@ -195,26 +198,29 @@ class HuggingFaceEncoder():
         return self.encoder.encode(sentences)
 
 
-class LaserTransformerEncoder(TransformerEncoder):
+class LaserTransformerEncoder(laser_transformer.LaserTransformerEncoder):
     def __init__(self, state_dict, vocab_path):
-        self.dictionary = Dictionary.load(vocab_path)
+        dictionary = Dictionary.load(vocab_path)
         if any(
             k in state_dict["model"]
             for k in ["encoder.layer_norm.weight", "layer_norm.weight"]
         ):
-            self.dictionary.add_symbol("<mask>")
+            dictionary.add_symbol("<mask>", overwrite=True)
+        self.pad_idx = dictionary.pad_index
+        self.bos_idx = dictionary.bos_index
+
         cfg = state_dict["cfg"]["model"]
-        self.sentemb_criterion = cfg.sentemb_criterion
-        self.pad_idx = self.dictionary.pad_index
-        self.bos_idx = self.dictionary.bos_index
-        embed_tokens = Embedding(
-            len(self.dictionary), cfg.encoder_embed_dim, self.pad_idx,
-        )
-        super().__init__(cfg, self.dictionary, embed_tokens)
+        if cfg.encoder_character_embeddings:
+            embed_tokens = character_cnn.CharacterCNN(cfg.encoder_embed_dim)
+        else:
+            embed_tokens = Embedding(
+                len(dictionary), cfg.encoder_embed_dim, self.pad_idx,
+            )
+        super().__init__(cfg.sentemb_criterion, cfg, dictionary, embed_tokens)
+        
         if "decoder.version" in state_dict["model"]:
             self._remove_decoder_layers(state_dict)
-        if "layer_norm.weight" in state_dict["model"]:
-            self.layer_norm = LayerNorm(cfg.encoder_embed_dim)
+
         self.load_state_dict(state_dict["model"])
 
     def _remove_decoder_layers(self, state_dict):
@@ -225,28 +231,13 @@ class LaserTransformerEncoder(TransformerEncoder):
                     "encoder.layers",
                     "encoder.embed",
                     "encoder.version",
+                    "encoder.output_projection"
                 )
             ):
                 del state_dict["model"][key]
             else:
                 renamed_key = key.replace("encoder.", "")
                 state_dict["model"][renamed_key] = state_dict["model"].pop(key)
-
-    def forward(self, src_tokens, src_lengths):
-        encoder_out = super().forward(src_tokens, src_lengths)
-        if isinstance(encoder_out, dict):
-            x = encoder_out["encoder_out"][0]  # T x B x C
-        else:
-            x = encoder_out[0]
-        if self.sentemb_criterion == "cls":
-            cls_indices = src_tokens.eq(self.bos_idx).t()
-            sentemb = x[cls_indices, :]
-        else:
-            padding_mask = src_tokens.eq(self.pad_idx).t().unsqueeze(-1)
-            if padding_mask.any():
-                x = x.float().masked_fill_(padding_mask, float("-inf")).type_as(x)
-            sentemb = x.max(dim=0)[0]
-        return {"sentemb": sentemb}
 
 
 class LaserLstmEncoder(nn.Module):
@@ -351,6 +342,7 @@ def load_model(
     encoder: str,
     spm_model: str,
     bpe_codes: str,
+    vocab_file: str=None,
     hugging_face=False,
     verbose=False,
     **encoder_kwargs
@@ -362,6 +354,8 @@ def load_model(
         if verbose:
             logger.info(f"spm_model: {spm_model}")
             logger.info(f"spm_cvocab: {spm_vocab}")
+    elif vocab_file:
+        spm_vocab = vocab_file
     else:
         spm_vocab = None
     return SentenceEncoder(
@@ -472,6 +466,7 @@ def embed_sentences(
     hugging_face = False,
     token_lang: Optional[str] = "--",
     bpe_codes: Optional[str] = None,
+    vocab_file: Optional[str] = None,
     spm_lang: Optional[str] = "en",
     spm_model: Optional[str] = None,
     verbose: bool = False,
@@ -495,6 +490,7 @@ def embed_sentences(
             encoder_path,
             spm_model,
             bpe_codes,
+            vocab_file=vocab_file,
             verbose=verbose,
             hugging_face=hugging_face,
             max_sentences=max_sentences,
@@ -610,6 +606,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use-hugging-face", action="store_true", help="Use a HuggingFace sentence transformer"
     )
+    parser.add_argument(
+        "--vocab-file", type=str, default=None, help="Use specified vocab file for encoding"
+    )
 
     args = parser.parse_args()
     embed_sentences(
@@ -617,6 +616,7 @@ if __name__ == "__main__":
         encoder_path=args.encoder,
         token_lang=args.token_lang,
         bpe_codes=args.bpe_codes,
+        vocab_file=args.vocab_file,
         spm_lang=args.spm_lang,
         hugging_face=args.use_hugging_face,
         spm_model=args.spm_model,
