@@ -28,8 +28,9 @@ import sys
 from typing import List, Tuple, Dict
 from tabulate import tabulate
 from collections import defaultdict
-from xsim import xSIM
+from xsim import xSIM, _load_embeddings
 from embed import embed_sentences, load_model
+from sklearn.metrics.pairwise import paired_cosine_distances
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -230,6 +231,61 @@ class Eval:
         print(f"\n{tabulate(df, langs, floatfmt='.2f', tablefmt='grid')}\n\n")
         print(f"Global average: {df.loc['avg'].mean():.2f}")
 
+    def calc_cosdist(
+        self, embdir, src_langs, tgt_langs, tgt_aug_langs
+    ) -> None:
+        outputs = []
+        src_emb_data = self._embed(
+            embdir,
+            src_langs,
+            self.src_encoder,
+            self.src_spm_model,
+            self.src_bpe_codes,
+        )
+        tgt_emb_data = self._embed(
+            embdir,
+            tgt_langs,
+            self.tgt_encoder,
+            self.tgt_spm_model,
+            self.tgt_bpe_codes,
+            tgt_aug_langs,
+        )
+        combs = list(itertools.product(src_emb_data, tgt_emb_data))
+        for (src_lang, _, src_emb, _), (tgt_lang, _, tgt_emb, _) in combs:
+            if src_lang == tgt_lang:
+                continue
+            if not isinstance(src_emb, np.ndarray):
+                src_emb = _load_embeddings(src_emb, self.emb_dimension, self.fp16)
+            if not isinstance(tgt_emb, np.ndarray):
+                tgt_emb = _load_embeddings(tgt_emb, self.emb_dimension, self.fp16)
+            distances = paired_cosine_distances(src_emb, tgt_emb)
+            dist = distances.mean()
+            nbex = distances.size
+            outputs.append(
+                [self.corpus, f"{src_lang}-{tgt_lang}", f"{dist}", f"{nbex}"]
+            )
+        outputs.append(
+            [
+                self.corpus,
+                "average",
+                f"{round(np.array(outputs)[:,2].astype(np.float64).mean(), 2)}",
+                f"{len(combs)}",
+            ]
+        )
+        df = pandas.DataFrame(outputs, columns=[
+                    "dataset",
+                    "src-tgt",
+                    "cosdist",
+                    "nbex",
+                ])
+        df.to_csv(os.path.join(self.output_dir, "cosine_distance_matrix.csv"))
+        print(
+            tabulate(
+                df,
+                tablefmt="psql",
+                headers=df.columns
+            )
+        )
 
 def run_eval(args) -> None:
     evaluation = Eval(args)
@@ -250,6 +306,8 @@ def run_eval(args) -> None:
         ), "Please provide tgt langs when not performing n-way comparison"
         tgt_langs = sorted(args.tgt_langs.split(","))
         evaluation.calc_xsim(embed_dir, src_langs, tgt_langs, tgt_aug_langs)
+        if args.cosine_distances:
+            evaluation.calc_cosdist(embed_dir, src_langs, tgt_langs, tgt_aug_langs)
     if tmp_dir:
         tmp_dir.cleanup()  # remove temporary directory
 
@@ -386,6 +444,9 @@ if __name__ == "__main__":
         type=str, 
         default=None, 
         help="Use specified vocab file for encoding"
+    )
+    parser.add_argument(
+        "--cosine-distances", action="store_true", help="Compute average pairwise cosine distances between src and tgt"
     )
     parser.add_argument("--verbose", action="store_true", help="Detailed output")
     parser.add_argument("--output-dir", type=str, default=None, help="Directory to save output file")
