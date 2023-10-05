@@ -191,7 +191,7 @@ class Eval:
                     "xsim" + ("(++)" if tgt_aug_langs else ""),
                     "nbex",
                 ])
-        df.to_csv(os.path.join(self.output_dir, "error_matrix_" + ("xsimpp.csv" if tgt_aug_langs else "xsim.csv")))
+        df.to_csv(os.path.join(self.output_dir, ("xsimpp" if tgt_aug_langs else "xsim") + "_matrix.csv"))
         print(
             tabulate(
                 df,
@@ -201,7 +201,7 @@ class Eval:
         )
         for tgt_aug_lang in tgt_aug_langs:
             df = pandas.DataFrame.from_dict(aug_df[tgt_aug_lang]).fillna(0).T
-            df.to_csv(os.path.join(self.output_dir, "error_matrix_xsimpp_augmented.csv"))
+            df.to_csv(os.path.join(self.output_dir, "xsimpp_errortype_matrix.csv"))
             print(
                 f"\nAbsolute error under augmented transformations for: {tgt_aug_lang}"
             )
@@ -227,7 +227,7 @@ class Eval:
                     err_matrix[i1, i2] = 100 * err / nbex
         df = pandas.DataFrame(err_matrix, columns=langs, index=langs)
         df.loc["avg"] = df.sum() / float(df.shape[0] - 1)  # exclude diagonal in average
-        df.to_csv(os.path.join(self.output_dir, "error_matrix_xsim_nway.csv"))
+        df.to_csv(os.path.join(self.output_dir, "xsim_nway_matrix.csv"))
         print(f"\n{tabulate(df, langs, floatfmt='.2f', tablefmt='grid')}\n\n")
         print(f"Global average: {df.loc['avg'].mean():.2f}")
 
