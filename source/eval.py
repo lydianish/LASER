@@ -51,17 +51,21 @@ class Eval:
         self.encoder_args = {
             k: v
             for k, v in args._get_kwargs()
-            if k in ["max_sentences", "max_tokens", "cpu", "sort_kind", "verbose", "vocab_file"]
+            if k in ["max_sentences", "max_tokens", "cpu", "sort_kind", "verbose"]
         }
         self.src_bpe_codes = args.src_bpe_codes
         self.tgt_bpe_codes = args.tgt_bpe_codes
         self.src_spm_model = args.src_spm_model
         self.tgt_spm_model = args.tgt_spm_model
+        self.src_vocab_file = args.src_vocab_file
+        self.tgt_vocab_file = args.tgt_vocab_file
+
         logger.info("loading src encoder")
         self.src_encoder = load_model(
             args.src_encoder,
             self.src_spm_model,
             self.src_bpe_codes,
+            vocab_file=self.src_vocab_file,
             hugging_face=args.use_hugging_face,
             **self.encoder_args,
         )
@@ -71,6 +75,7 @@ class Eval:
                 args.tgt_encoder,
                 self.tgt_spm_model,
                 self.tgt_bpe_codes,
+                vocab_file=self.tgt_vocab_file,
                 hugging_face=args.use_hugging_face,
                 **self.encoder_args,
             )
@@ -79,6 +84,7 @@ class Eval:
             self.tgt_encoder = self.src_encoder
             self.tgt_bpe_codes = self.src_bpe_codes
             self.tgt_spm_model = self.src_spm_model
+            self.tgt_vocab_file = self.src_vocab_file
         self.nway = args.nway
         self.buffer_size = args.buffer_size
         self.fp16 = args.fp16
@@ -86,7 +92,7 @@ class Eval:
         self.output_dir = args.output_dir
 
     def _embed(
-        self, tmpdir, langs, encoder, spm_model, bpe_codes, tgt_aug_langs=[]
+        self, tmpdir, langs, encoder, spm_model, bpe_codes, tgt_aug_langs=[], vocab_file=None
     ) -> List[List[str]]:
         emb_data = []
         for lang in langs:
@@ -114,6 +120,7 @@ class Eval:
                 str(outfile),
                 encoder=encoder,
                 spm_model=spm_model,
+                vocab_file=vocab_file,
                 bpe_codes=bpe_codes,
                 token_lang=lang if bpe_codes else "--",
                 buffer_size=self.buffer_size,
@@ -149,6 +156,7 @@ class Eval:
             self.src_encoder,
             self.src_spm_model,
             self.src_bpe_codes,
+            vocab_file=self.src_vocab_file
         )
         tgt_emb_data = self._embed(
             embdir,
@@ -157,6 +165,7 @@ class Eval:
             self.tgt_spm_model,
             self.tgt_bpe_codes,
             tgt_aug_langs,
+            vocab_file=self.tgt_vocab_file
         )
         aug_df = defaultdict(lambda: defaultdict())
         combs = list(itertools.product(src_emb_data, tgt_emb_data))
@@ -440,10 +449,16 @@ if __name__ == "__main__":
         help="Embedding dimension for encoders",
     )
     parser.add_argument(
-        "--vocab-file", 
+        "--src-vocab-file", 
         type=str, 
         default=None, 
-        help="Use specified vocab file for encoding"
+        help="Use specified vocab file for encoding the source"
+    )
+    parser.add_argument(
+        "--tgt-vocab-file", 
+        type=str, 
+        default=None, 
+        help="Use specified vocab file for encoding the target"
     )
     parser.add_argument(
         "--cosine-distances", action="store_true", help="Compute average pairwise cosine distances between src and tgt"
