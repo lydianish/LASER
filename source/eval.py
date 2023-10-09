@@ -170,7 +170,7 @@ class Eval:
         aug_df = defaultdict(lambda: defaultdict())
         combs = list(itertools.product(src_emb_data, tgt_emb_data))
         for (src_lang, _, src_emb, _), (tgt_lang, tgt_txt, tgt_emb, augjson) in combs:
-            if src_lang == tgt_lang:
+            if src_lang == tgt_lang and self.src_encoder == self.tgt_encoder:
                 continue
             err, nbex, aug_report = self._xsim(
                 src_emb, src_lang, tgt_emb, tgt_lang, tgt_txt, augjson
