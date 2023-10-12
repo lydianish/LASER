@@ -57,6 +57,8 @@ class Eval:
         self.tgt_bpe_codes = args.tgt_bpe_codes
         self.src_spm_model = args.src_spm_model
         self.tgt_spm_model = args.tgt_spm_model
+        self.src_tokenizer = args.src_tokenizer
+        self.tgt_tokenizer = args.tgt_tokenizer
         self.src_vocab_file = args.src_vocab_file
         self.tgt_vocab_file = args.tgt_vocab_file
 
@@ -65,7 +67,7 @@ class Eval:
             args.src_encoder,
             self.src_spm_model,
             self.src_bpe_codes,
-            vocab_file=self.src_vocab_file,
+            custom_vocab_file=self.src_vocab_file,
             hugging_face=args.use_hugging_face,
             **self.encoder_args,
         )
@@ -75,7 +77,7 @@ class Eval:
                 args.tgt_encoder,
                 self.tgt_spm_model,
                 self.tgt_bpe_codes,
-                vocab_file=self.tgt_vocab_file,
+                custom_vocab_file=self.tgt_vocab_file,
                 hugging_face=args.use_hugging_face,
                 **self.encoder_args,
             )
@@ -84,15 +86,17 @@ class Eval:
             self.tgt_encoder = self.src_encoder
             self.tgt_bpe_codes = self.src_bpe_codes
             self.tgt_spm_model = self.src_spm_model
+            self.tgt_tokenizer = self.src_tokenizer
             self.tgt_vocab_file = self.src_vocab_file
         self.nway = args.nway
         self.buffer_size = args.buffer_size
         self.fp16 = args.fp16
         self.margin = args.margin
         self.output_dir = args.output_dir
+        self.do_pretok = args.do_pretok
 
     def _embed(
-        self, tmpdir, langs, encoder, spm_model, bpe_codes, tgt_aug_langs=[], vocab_file=None
+        self, tmpdir, langs, encoder, spm_model, bpe_codes, tgt_aug_langs=[], tokenizer=None, vocab_file=None
     ) -> List[List[str]]:
         emb_data = []
         for lang in langs:
@@ -120,9 +124,10 @@ class Eval:
                 str(outfile),
                 encoder=encoder,
                 spm_model=spm_model,
-                vocab_file=vocab_file,
+                custom_tokenizer=tokenizer,
+                custom_vocab_file=vocab_file,
                 bpe_codes=bpe_codes,
-                token_lang=lang if bpe_codes else "--",
+                token_lang=lang if bpe_codes or self.do_pretok else "--",
                 buffer_size=self.buffer_size,
                 fp16=self.fp16,
                 **self.encoder_args,
@@ -156,6 +161,7 @@ class Eval:
             self.src_encoder,
             self.src_spm_model,
             self.src_bpe_codes,
+            tokenizer=self.src_tokenizer,
             vocab_file=self.src_vocab_file
         )
         tgt_emb_data = self._embed(
@@ -165,12 +171,13 @@ class Eval:
             self.tgt_spm_model,
             self.tgt_bpe_codes,
             tgt_aug_langs,
+            tokenizer=self.tgt_tokenizer,
             vocab_file=self.tgt_vocab_file
         )
         aug_df = defaultdict(lambda: defaultdict())
         combs = list(itertools.product(src_emb_data, tgt_emb_data))
         for (src_lang, _, src_emb, _), (tgt_lang, tgt_txt, tgt_emb, augjson) in combs:
-            if src_lang == tgt_lang and self.src_encoder == self.tgt_encoder:
+            if src_lang == tgt_lang:
                 continue
             err, nbex, aug_report = self._xsim(
                 src_emb, src_lang, tgt_emb, tgt_lang, tgt_txt, augjson
@@ -224,6 +231,8 @@ class Eval:
             self.src_encoder,
             self.src_spm_model,
             self.src_bpe_codes,
+            tokenizer=self.src_tokenizer,
+            vocab_file=self.src_vocab_file
         )
         for i1, (src_lang, _, src_emb, _) in enumerate(emb_data):
             for i2, (tgt_lang, tgt_txt, tgt_emb, _) in enumerate(emb_data):
@@ -250,6 +259,8 @@ class Eval:
             self.src_encoder,
             self.src_spm_model,
             self.src_bpe_codes,
+            tokenizer=self.src_tokenizer,
+            vocab_file=self.src_vocab_file
         )
         tgt_emb_data = self._embed(
             embdir,
@@ -258,6 +269,8 @@ class Eval:
             self.tgt_spm_model,
             self.tgt_bpe_codes,
             tgt_aug_langs,
+            tokenizer=self.tgt_tokenizer,
+            vocab_file=self.tgt_vocab_file
         )
         combs = list(itertools.product(src_emb_data, tgt_emb_data))
         for (src_lang, _, src_emb, _), (tgt_lang, _, tgt_emb, _) in combs:
@@ -461,9 +474,25 @@ if __name__ == "__main__":
         help="Use specified vocab file for encoding the target"
     )
     parser.add_argument(
+        "--src-tokenizer", 
+        type=str, 
+        default=None, 
+        help="Use specified tokenizer bash script after preprocessing and before encoding the source. " +
+        "It should be a bash script that takes an input file path as 1st (unnamed) arg and output file path as 2nd."
+    )
+    parser.add_argument(
+        "--tgt-tokenizer", 
+        type=str, 
+        default=None, 
+        help="Use specified tokenizer bash script after preprocessing and before encoding the target. " +
+        "It should be a bash script that takes an input file path as 1st (unnamed) arg and output file path as 2nd."
+
+    )
+    parser.add_argument(
         "--cosine-distances", action="store_true", help="Compute average pairwise cosine distances between src and tgt"
     )
     parser.add_argument("--verbose", action="store_true", help="Detailed output")
+    parser.add_argument("--do-pretok", action="store_true", help="Do preprocessing and pretokenization")
     parser.add_argument("--output-dir", type=str, default=None, help="Directory to save output file")
     args = parser.parse_args()
     run_eval(args)

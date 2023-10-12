@@ -72,7 +72,7 @@ class SentenceEncoder:
         model_path,
         max_sentences=None,
         max_tokens=None,
-        spm_vocab=None,
+        vocab=None,
         cpu=False,
         fp16=False,
         verbose=False,
@@ -94,7 +94,7 @@ class SentenceEncoder:
             self.prepend_bos = False
             self.left_padding = False
         else:
-            self.encoder = LaserTransformerEncoder(state_dict, spm_vocab)
+            self.encoder = LaserTransformerEncoder(state_dict, vocab)
             self.dictionary = self.encoder.dictionary.indices
             self.prepend_bos = state_dict["cfg"]["model"].prepend_bos
             self.left_padding = state_dict["cfg"]["model"].left_pad_source
@@ -342,7 +342,7 @@ def load_model(
     encoder: str,
     spm_model: str,
     bpe_codes: str,
-    vocab_file: str=None,
+    custom_vocab_file: str=None,
     hugging_face=False,
     verbose=False,
     **encoder_kwargs
@@ -350,16 +350,16 @@ def load_model(
     if hugging_face:
         return HuggingFaceEncoder(encoder, verbose=verbose)
     if spm_model:
-        spm_vocab = str(Path(spm_model).with_suffix(".cvocab"))
+        vocab = str(Path(spm_model).with_suffix(".cvocab"))
         if verbose:
             logger.info(f"spm_model: {spm_model}")
-            logger.info(f"spm_cvocab: {spm_vocab}")
-    elif vocab_file:
-        spm_vocab = vocab_file
+            logger.info(f"spm_cvocab: {vocab}")
+    elif custom_vocab_file:
+        vocab = custom_vocab_file
     else:
-        spm_vocab = None
+        vocab = None
     return SentenceEncoder(
-        encoder, spm_vocab=spm_vocab, verbose=verbose, **encoder_kwargs
+        encoder, vocab=vocab, verbose=verbose, **encoder_kwargs
     )
 
 
@@ -465,8 +465,9 @@ def embed_sentences(
     encoder_path: str = None,
     hugging_face = False,
     token_lang: Optional[str] = "--",
+    custom_tokenizer: Optional[str] = None,
+    custom_vocab_file: Optional[str] = None,
     bpe_codes: Optional[str] = None,
-    vocab_file: Optional[str] = None,
     spm_lang: Optional[str] = "en",
     spm_model: Optional[str] = None,
     verbose: bool = False,
@@ -483,14 +484,18 @@ def embed_sentences(
         not max_sentences or max_sentences <= buffer_size
     ), "--max-sentences/--batch-size cannot be larger than --buffer-size"
 
-    assert not (bpe_codes and spm_model), "Cannot specify both spm and bpe"
+    assert not (
+        (custom_tokenizer and bpe_codes) or 
+        (custom_tokenizer and spm_model) or 
+        (bpe_codes and spm_model)
+    ), "Cannot specify both spm, bpe and/or custom tokenizer"
 
     if encoder_path:
         encoder = load_model(
             encoder_path,
             spm_model,
             bpe_codes,
-            vocab_file=vocab_file,
+            custom_vocab_file=custom_vocab_file,
             verbose=verbose,
             hugging_face=hugging_face,
             max_sentences=max_sentences,
@@ -513,6 +518,11 @@ def embed_sentences(
                 verbose=verbose,
                 over_write=False,
             )
+            ifname = tok_fname
+        
+        if custom_tokenizer:
+            tok_fname = os.path.join(tmpdir, "custom_tok")
+            run(" ".join(["bash", custom_tokenizer, ifname, tok_fname]), shell=True)
             ifname = tok_fname
 
         if bpe_codes:
@@ -607,7 +617,10 @@ if __name__ == "__main__":
         "--use-hugging-face", action="store_true", help="Use a HuggingFace sentence transformer"
     )
     parser.add_argument(
-        "--vocab-file", type=str, default=None, help="Use specified vocab file for encoding"
+        "--custom-vocab-file", type=str, default=None, help="Use specified vocab file for encoding"
+    )
+    parser.add_argument(
+        "--custom-tokenizer", type=str, default=None, help="Use specified tokenizer script after preprocessing and before encoding"
     )
 
     args = parser.parse_args()
@@ -615,8 +628,9 @@ if __name__ == "__main__":
         ifname=args.input,
         encoder_path=args.encoder,
         token_lang=args.token_lang,
+        custom_tokenizer=args.custom_tokenizer,
+        custom_vocab_file=args.custom_vocab_file,
         bpe_codes=args.bpe_codes,
-        vocab_file=args.vocab_file,
         spm_lang=args.spm_lang,
         hugging_face=args.use_hugging_face,
         spm_model=args.spm_model,
