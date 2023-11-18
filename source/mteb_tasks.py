@@ -2,6 +2,7 @@ import argparse
 from mteb import MTEB
 from embed import SentenceEncoder
 import sentencepiece as spm
+from lib.text_processing import PreprocessLineForSPM
 
 class MyModel(SentenceEncoder):
     def __init__(
@@ -15,7 +16,8 @@ class MyModel(SentenceEncoder):
         fp16=False,
         verbose=False,
         sort_kind="quicksort",
-        case_sensitive=False
+        lower_case=False,
+        no_preprocessing=False
     ):
         super().__init__(
             model_path=model_path, 
@@ -28,7 +30,8 @@ class MyModel(SentenceEncoder):
             sort_kind=sort_kind,
         )
         self.spm_model = spm.SentencePieceProcessor(model_file=spm_model)
-        self.case_sensitive = case_sensitive
+        self.lower_case = lower_case
+        self.no_preprocessing = no_preprocessing
 
     def encode(self, sentences, batch_size=32, **kwargs):
         """
@@ -40,10 +43,14 @@ class MyModel(SentenceEncoder):
         Returns:
             `List[np.ndarray]` or `List[tensor]`: List of embeddings for the given sentences
         """
-    
-        preprocessed_sentences = sentences if self.case_sensitive else [ s.lower() for s in sentences ]
-        tokenized_sentences = [ " ".join(s) for s in self.spm_model.encode_as_pieces(preprocessed_sentences) ]
-        embeddings = super().encode_sentences(tokenized_sentences)
+        if self.no_preprocessing:
+            preprocessed_sentences = sentences
+        elif self.lower_case:
+            preprocessed_sentences = [ s.lower() for s in sentences ]
+        else:
+            preprocessed_sentences = [ PreprocessLineForSPM(s) for s in sentences ]
+        spm_sentences = [ " ".join(s) for s in self.spm_model.encode_as_pieces(preprocessed_sentences) ]
+        embeddings = super().encode_sentences(spm_sentences)
         return embeddings
 
 if __name__ == "__main__":
@@ -64,7 +71,10 @@ if __name__ == "__main__":
         "-v", "--verbose", action="store_true", help="Detailed output"
     )
     parser.add_argument(
-        "--case-sensitive", action="store_true", help="Case-sensitive embeddings"
+        "--lower-case", action="store_true", help="Lower case only as preprocessing for embeddings"
+    )
+    parser.add_argument(
+        "--no-preprocessing", action="store_true", help="No text preprocessing for embeddings"
     )
     parser.add_argument(
         "--english-only", action="store_true", help="Evaluate on tasks that require English-only encoder"
@@ -75,5 +85,5 @@ if __name__ == "__main__":
         evaluation = MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"])
     else:
         evaluation = MTEB(tasks=["BUCC"])
-    model = MyModel(args.encoder, spm_model=args.spm_model, vocab=args.vocab, verbose=args.verbose, case_sensitive=args.case_sensitive)
+    model = MyModel(args.encoder, spm_model=args.spm_model, vocab=args.vocab, verbose=args.verbose, lower_case=args.lower_case, no_preprocessing=args.no_preprocessing)
     evaluation.run(model, output_folder=args.output_dir)

@@ -60,16 +60,16 @@ def TokenLine(line, lang='en', lower_case=True, romanize=False):
     assert lower_case, 'lower case is needed by all the models'
     roman = lang if romanize else 'none'
     tok = check_output(
-            REM_NON_PRINT_CHAR
-            + '|' + NORM_PUNC + lang
-            + '|' + DESCAPE
-            + '|' + MOSES_TOKENIZER + lang
-            + ('| python3 -m jieba -d ' if lang == 'zh' else '')
-            + ('|' + MECAB + '/bin/mecab -O wakati -b 50000 ' if lang == 'ja' else '')
-            + '|' + ROMAN_LC + roman,
-            input=line,
-            encoding='UTF-8',
-            shell=True)
+        REM_NON_PRINT_CHAR
+        + '|' + NORM_PUNC + lang
+        + '|' + DESCAPE
+        + '|' + MOSES_TOKENIZER + lang
+        + ('| python3 -m jieba -d ' if lang == 'zh' else '')
+        + ('|' + MECAB + '/bin/mecab -O wakati -b 50000 ' if lang == 'ja' else '')
+        + '|' + ROMAN_LC + roman,
+        input=line,
+        encoding='UTF-8',
+        shell=True)
     return tok.strip()
 
 
@@ -119,6 +119,18 @@ def Token(inp_fname, out_fname, lang='en',
 # Apply SPM on a whole file
 #
 ###############################################################################
+
+def PreprocessLineForSPM(line, lang='en', lower_case=True, descape=False):
+    #assert lower_case, 'lower case is needed by all the models'
+    preprocessed_line = check_output(
+        REM_NON_PRINT_CHAR
+        + '|' + NORM_PUNC + lang
+        + ('|' + DESCAPE if descape else '')
+        + ('|' + ROMAN_LC + 'none' if lower_case else ''),
+        input=line,
+        encoding='UTF-8',
+        shell=True)
+    return preprocessed_line.strip()
 
 def SPMApply(inp_fname, out_fname, spm_model, lang='en',
              lower_case=True, descape=False,
