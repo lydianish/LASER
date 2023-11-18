@@ -64,11 +64,16 @@ if __name__ == "__main__":
         "-v", "--verbose", action="store_true", help="Detailed output"
     )
     parser.add_argument(
-        "--case-sensitive", action="store_true", help="Detailed output"
+        "--case-sensitive", action="store_true", help="Case-sensitive embeddings"
+    )
+    parser.add_argument(
+        "--english-only", action="store_true", help="Evaluate on tasks that require English-only encoder"
     )
     
     args = parser.parse_args()
-    evaluation = MTEB(task_types=["Classification", "STS"], task_categories=["s2s"], task_langs=["en"])
-    # evaluation = MTEB(tasks=["Banking77Classification"])
+    if args.english_only:
+        evaluation = MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"])
+    else:
+        evaluation = MTEB(tasks=["BUCC"])
     model = MyModel(args.encoder, spm_model=args.spm_model, vocab=args.vocab, verbose=args.verbose, case_sensitive=args.case_sensitive)
     evaluation.run(model, output_folder=args.output_dir)
