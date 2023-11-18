@@ -207,7 +207,8 @@ class Eval:
                     "xsim" + ("(++)" if tgt_aug_langs else ""),
                     "nbex",
                 ])
-        df.to_csv(os.path.join(self.output_dir, ("xsimpp" if tgt_aug_langs else "xsim") + "_matrix.csv"))
+        if self.output_dir:
+            df.to_csv(os.path.join(self.output_dir, ("xsimpp" if tgt_aug_langs else "xsim") + "_matrix.csv"))
         print(
             tabulate(
                 df,
@@ -217,7 +218,8 @@ class Eval:
         )
         for tgt_aug_lang in tgt_aug_langs:
             df = pandas.DataFrame.from_dict(aug_df[tgt_aug_lang]).fillna(0).T
-            df.to_csv(os.path.join(self.output_dir, "xsimpp_errortype_matrix.csv"))
+            if self.output_dir:
+                df.to_csv(os.path.join(self.output_dir, "xsimpp_errortype_matrix.csv"))
             print(
                 f"\nAbsolute error under augmented transformations for: {tgt_aug_lang}"
             )
@@ -245,7 +247,8 @@ class Eval:
                     err_matrix[i1, i2] = 100 * err / nbex
         df = pandas.DataFrame(err_matrix, columns=langs, index=langs)
         df.loc["avg"] = df.sum() / float(df.shape[0] - 1)  # exclude diagonal in average
-        df.to_csv(os.path.join(self.output_dir, "xsim_nway_matrix.csv"))
+        if self.output_dir:
+            df.to_csv(os.path.join(self.output_dir, "xsim_nway_matrix.csv"))
         print(f"\n{tabulate(df, langs, floatfmt='.2f', tablefmt='grid')}\n\n")
         print(f"Global average: {df.loc['avg'].mean():.2f}")
 
@@ -300,7 +303,8 @@ class Eval:
                     "cosdist",
                     "nbex",
                 ])
-        df.to_csv(os.path.join(self.output_dir, "cosine_distance_matrix.csv"))
+        if self.output_dir:
+            df.to_csv(os.path.join(self.output_dir, "cosine_distance_matrix.csv"))
         print(
             tabulate(
                 df,
@@ -318,6 +322,8 @@ def run_eval(args) -> None:
     else:
         tmp_dir = tempfile.TemporaryDirectory()
         embed_dir = Path(tmp_dir.name)
+    if args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
     src_langs = sorted(args.src_langs.split(","))
     tgt_aug_langs = sorted(args.tgt_aug_langs.split(",")) if args.tgt_aug_langs else []
     if evaluation.nway:

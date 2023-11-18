@@ -63,10 +63,25 @@ fi
 download "laser2.spm"
 download "laser2.cvocab"
 
-corpus_part="devtest"
 corpus="flores200"
+corpus_part="devtest"
+
+# languages=""
+# for file in $LASER/data/$corpus/$corpus_part/*
+# do
+#     lang=${file##*/} # remove parent path
+#     languages=$languages${lang%.*}, # remove extension
+# done
+# languages=${languages%,} # remove final comma
+# languages=${languages//eng_Latn,/} # remove English from source languages
 
 # note: example evaluation script expects format: basedir/corpus/corpus_part/lang.corpus_part
+
+corpus="rocsmt"
+corpus_part="test"
+ddir=/home/lnishimw/scratch/datasets
+languages="ref.fr,ref.de,ref.cs,ref.uk,ref.ru,raw.en"
+target_lang="norm.en"
 
 echo " - calculating xsim"
 python3 $LASER/source/eval.py                \
@@ -76,5 +91,6 @@ python3 $LASER/source/eval.py                \
     --margin ratio                           \
     --src-encoder   $LASER/models/laser2.pt  \
     --src-spm-model $LASER/models/laser2.spm \
-    --src-langs afr_Latn,fin_Latn,fra_Latn,hin_Deva,tha_Thai,eng_Latn      \
-    --nway --verbose
+    --src-langs $languages      \
+    --output-dir /home/lnishimw/scratch/LASER/tasks/xsim/rsim_5      \
+    --tgt-langs $target_lang --verbose --cosine-distances

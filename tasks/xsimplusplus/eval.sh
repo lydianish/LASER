@@ -66,7 +66,7 @@ fi
 download "laser2.spm" $mdir
 download "laser2.cvocab" $mdir
 
-corpus_part="dev" 
+corpus_part="devtest" 
 corpus="flores200"
 
 # download flores200 augmented data (eng_Latn)
@@ -75,6 +75,15 @@ augmented_dir=$ddir/$corpus/${corpus_part}_augmented
 if [ ! -d $augmented_dir ]; then mkdir $augmented_dir; fi 
 download "eng_Latn_augmented.$corpus_part" $augmented_dir
 download "eng_Latn_errtype.$corpus_part.json" $augmented_dir
+
+languages=""
+for file in $LASER/data/$corpus/$corpus_part/*
+do
+    lang=${file##*/} # remove parent path
+    languages=$languages${lang%.*}, # remove extension
+done
+languages=${languages%,} # remove final comma
+languages=${languages//eng_Latn,/} # remove English from source languages
 
 # note: example evaluation script expects format: basedir/corpus/corpus_part/lang.corpus_part
 
@@ -86,8 +95,8 @@ python3 $LASER/source/eval.py                \
     --margin ratio                           \
     --src-encoder   $LASER/models/laser2.pt  \
     --src-spm-model $LASER/models/laser2.spm \
-    --src-langs afr_Latn,fin_Latn,fra_Latn,hin_Deva,tha_Thai      \
+    --src-langs $languages      \
     --tgt-langs eng_Latn \
     --tgt-aug-langs eng_Latn \
-    --output-dir /home/lnishimw/scratch/LASER/tasks/xsimplusplus \
-    --verbose 
+    --output-dir /home/lnishimw/scratch/LASER/tasks/xsimplusplus/xsimpp      \
+    --verbose

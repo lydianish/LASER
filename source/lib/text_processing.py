@@ -123,7 +123,7 @@ def Token(inp_fname, out_fname, lang='en',
 def SPMApply(inp_fname, out_fname, spm_model, lang='en',
              lower_case=True, descape=False,
              verbose=False, over_write=False, gzip=False):
-    assert lower_case, 'lower case is needed by all the models'
+    #assert lower_case, 'lower case is needed by all the models'
     if not os.path.isfile(out_fname):
         cat = 'zcat ' if gzip else 'cat '
         if verbose:
@@ -137,7 +137,7 @@ def SPMApply(inp_fname, out_fname, spm_model, lang='en',
             + '|' + REM_NON_PRINT_CHAR
             + '|' + NORM_PUNC + lang
             + ('|' + DESCAPE if descape else '')
-            + '|' + ROMAN_LC + 'none'
+            + ('|' + ROMAN_LC + 'none' if lower_case else '')
             + '|' + SPM + " --model=" + spm_model
             + ' > ' + out_fname)
         try:
