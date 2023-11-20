@@ -20,9 +20,9 @@ import logging
 from pathlib import Path
 import numpy as np
 from subprocess import run, check_output, CalledProcessError, DEVNULL
-from remove_non_printing_chars import remove_non_printing_chars
-from normalize_punctuation import normalize_punctuation
-from deescape_special_chars import deescape_special_chars
+from .remove_non_printing_chars import remove_non_printing_chars
+from .normalize_punctuation import normalize_punctuation
+from .deescape_special_chars import deescape_special_chars
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -136,10 +136,11 @@ def PreprocessLine(line, lang='en', lower_case=True, descape=False):
         text = text.lower()
     return text
 
-def SPMApply(inp_fname, out_fname, spm_model, lang='en',
+def SPMApply(inp_fname, out_fname, spm_model, custom_tokenizer=None, lang='en',
              lower_case=True, descape=False,
              verbose=False, over_write=False, gzip=False):
     assert lower_case, 'lower case is needed by all the models'
+    assert not(spm_model and custom_tokenizer), 'cannot define both SPM model and custom tokenizer'
     if not os.path.isfile(out_fname):
         cat = 'zcat ' if gzip else 'cat '
         if verbose:
@@ -148,13 +149,13 @@ def SPMApply(inp_fname, out_fname, spm_model, lang='en',
                          '(gzip)' if gzip else '',
                          '(de-escaped)' if descape else ''))
 
-        assert os.path.isfile(spm_model), f'SPM model {spm_model} not found'
+        assert os.path.isfile(spm_model) or os.path.isfile(custom_tokenizer), f'No SPM model {spm_model} or custom tokenizer {custom_tokenizer} found'
         command = (cat + inp_fname
             + '|' + REM_NON_PRINT_CHAR
             + '|' + NORM_PUNC + lang
             + ('|' + DESCAPE if descape else '')
-            + ('|' + ROMAN_LC + 'none' if lower_case else '')
-            + '|' + SPM + " --model=" + spm_model
+            + '|' + ROMAN_LC + 'none'
+            + '|' + ((SPM + " --model=" + spm_model) if spm_model else 'python ' + custom_tokenizer)
             + ' > ' + out_fname)
         try:
             run(["/bin/bash", "-o", "pipefail", "-c", command], check=True, capture_output=True)

@@ -342,6 +342,7 @@ def load_model(
     encoder: str,
     spm_model: str,
     bpe_codes: str,
+    custom_tokenizer: str=None,
     custom_vocab_file: str=None,
     hugging_face=False,
     verbose=False,
@@ -356,6 +357,9 @@ def load_model(
             logger.info(f"spm_cvocab: {vocab}")
     elif custom_vocab_file:
         vocab = custom_vocab_file
+        if verbose:
+            logger.info(f"custom_tokenizer: {custom_tokenizer}")
+            logger.info(f"custom_cvocab: {vocab}")
     else:
         vocab = None
     return SentenceEncoder(
@@ -490,11 +494,15 @@ def embed_sentences(
         (bpe_codes and spm_model)
     ), "Cannot specify both spm, bpe and/or custom tokenizer"
 
+    if custom_tokenizer:
+        assert custom_tokenizer.endswith(".py"), "Custom tokenizer must be a Python script that reads standard input"
+
     if encoder_path:
         encoder = load_model(
             encoder_path,
             spm_model,
             bpe_codes,
+            custom_tokenizer=custom_tokenizer,
             custom_vocab_file=custom_vocab_file,
             verbose=verbose,
             hugging_face=hugging_face,
@@ -520,11 +528,6 @@ def embed_sentences(
             )
             ifname = tok_fname
         
-        if custom_tokenizer:
-            tok_fname = os.path.join(tmpdir, "custom_tok")
-            run(" ".join(["bash", custom_tokenizer, ifname, tok_fname]), shell=True)
-            ifname = tok_fname
-
         if bpe_codes:
             if ifname == "":  # stdin
                 ifname = os.path.join(tmpdir, "no_tok")
@@ -535,12 +538,13 @@ def embed_sentences(
             )
             ifname = bpe_fname
 
-        if spm_model:
+        if spm_model or custom_tokenizer:
             spm_fname = os.path.join(tmpdir, "spm")
             SPMApply(
                 ifname,
                 spm_fname,
                 spm_model,
+                custom_tokenizer=custom_tokenizer,
                 lang=spm_lang,
                 lower_case=True,
                 verbose=verbose,
@@ -620,7 +624,7 @@ if __name__ == "__main__":
         "--custom-vocab-file", type=str, default=None, help="Use specified vocab file for encoding"
     )
     parser.add_argument(
-        "--custom-tokenizer", type=str, default=None, help="Use specified tokenizer script after preprocessing and before encoding"
+        "--custom-tokenizer", type=str, default=None, help="Use specified tokenizer script after preprocessing and before encoding. Expects a Python script that reads standard input."
     )
 
     args = parser.parse_args()
