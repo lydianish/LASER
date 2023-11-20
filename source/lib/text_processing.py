@@ -149,7 +149,7 @@ def SPMApply(inp_fname, out_fname, spm_model, custom_tokenizer=None, lang='en',
                          '(gzip)' if gzip else '',
                          '(de-escaped)' if descape else ''))
 
-        assert os.path.isfile(spm_model) or os.path.isfile(custom_tokenizer), f'No SPM model {spm_model} or custom tokenizer {custom_tokenizer} found'
+        assert os.path.isfile(custom_tokenizer) if custom_tokenizer else os.path.isfile(spm_model), f'No SPM model ({spm_model}) or custom tokenizer ({custom_tokenizer}) found'
         command = (cat + inp_fname
             + '|' + REM_NON_PRINT_CHAR
             + '|' + NORM_PUNC + lang

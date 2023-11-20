@@ -93,7 +93,6 @@ class Eval:
         self.fp16 = args.fp16
         self.margin = args.margin
         self.output_dir = args.output_dir
-        self.do_pretok = args.do_pretok
 
     def _embed(
         self, tmpdir, langs, encoder, spm_model, bpe_codes, tgt_aug_langs=[], tokenizer=None, vocab_file=None
@@ -127,7 +126,7 @@ class Eval:
                 custom_tokenizer=tokenizer,
                 custom_vocab_file=vocab_file,
                 bpe_codes=bpe_codes,
-                token_lang=lang if bpe_codes or self.do_pretok else "--",
+                token_lang=lang if bpe_codes else "--",
                 buffer_size=self.buffer_size,
                 fp16=self.fp16,
                 **self.encoder_args,
@@ -498,7 +497,6 @@ if __name__ == "__main__":
         "--cosine-distances", action="store_true", help="Compute average pairwise cosine distances between src and tgt"
     )
     parser.add_argument("--verbose", action="store_true", help="Detailed output")
-    parser.add_argument("--do-pretok", action="store_true", help="Do preprocessing and pretokenization")
     parser.add_argument("--output-dir", type=str, default=None, help="Directory to save output file")
     args = parser.parse_args()
     run_eval(args)
