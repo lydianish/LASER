@@ -20,6 +20,9 @@ import logging
 from pathlib import Path
 import numpy as np
 from subprocess import run, check_output, CalledProcessError, DEVNULL
+from remove_non_printing_chars import remove_non_printing_chars
+from normalize_punctuation import normalize_punctuation
+from deescape_special_chars import deescape_special_chars
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -120,22 +123,23 @@ def Token(inp_fname, out_fname, lang='en',
 #
 ###############################################################################
 
-def PreprocessLineForSPM(line, lang='en', lower_case=True, descape=False):
-    #assert lower_case, 'lower case is needed by all the models'
-    preprocessed_line = check_output(
-        REM_NON_PRINT_CHAR
-        + '|' + NORM_PUNC + lang
-        + ('|' + DESCAPE if descape else '')
-        + ('|' + ROMAN_LC + 'none' if lower_case else ''),
-        input=line,
-        encoding='UTF-8',
-        shell=True)
-    return preprocessed_line.strip()
+def PreprocessLine(line, lang='en', lower_case=True, descape=False):
+    """
+    Apply to a single line the same preprocessing as LASER's SPMApply
+    """
+    assert lower_case, 'lower case is needed by all the models'
+    text = remove_non_printing_chars(line)
+    text = normalize_punctuation(text, lang)
+    if descape:
+        text = deescape_special_chars(text)
+    if lower_case:
+        text = text.lower()
+    return text
 
 def SPMApply(inp_fname, out_fname, spm_model, lang='en',
              lower_case=True, descape=False,
              verbose=False, over_write=False, gzip=False):
-    #assert lower_case, 'lower case is needed by all the models'
+    assert lower_case, 'lower case is needed by all the models'
     if not os.path.isfile(out_fname):
         cat = 'zcat ' if gzip else 'cat '
         if verbose:
