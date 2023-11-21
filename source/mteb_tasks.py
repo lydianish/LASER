@@ -1,9 +1,10 @@
-import argparse, os
+import argparse, os, json
 from mteb import MTEB
 from embed import SentenceEncoder
 import sentencepiece as spm
 from lib.text_processing import PreprocessLine
 from lib.custom_tokenizers import CustomTokenizer, SUPPORTED_TOKENIZERS
+import pandas as pd
 
 TASK_LIST_CLASSIFICATION = [
     "AmazonCounterfactualClassification",
@@ -36,7 +37,11 @@ TASK_LIST_STS = [
     "STSBenchmark",
 ]
 
-TASK_LIST = (
+TASK_LIST_BITEXT_MINING = [
+    "BUCC"
+]
+
+TASK_LIST_S2S_ENGLISH = (
     TASK_LIST_PAIR_CLASSIFICATION
     + TASK_LIST_CLASSIFICATION
     + TASK_LIST_STS
@@ -82,6 +87,43 @@ class CustomModel(SentenceEncoder):
         embeddings = super().encode_sentences(tokenized_sentences)
         return embeddings
 
+def average_scores(output_dir):
+    print("## Averaging all pair classification scores...")
+    pair_classification_scores = pd.DataFrame(columns=["Average"] + TASK_LIST_PAIR_CLASSIFICATION)
+    for task in TASK_LIST_PAIR_CLASSIFICATION:
+        with open(os.path.join(output_dir, f"{task}.json")) as f:
+            task_scores = json.load(f)
+        pair_classification_scores.at[0, task] = task_scores["test"]["cos_sim"]["ap"] * 100
+    pair_classification_scores["Average"] = pair_classification_scores[TASK_LIST_PAIR_CLASSIFICATION].mean(axis=1)
+    pair_classification_scores.to_csv(os.path.join(output_dir, "scores_pair_classification.csv"))
+
+    print("## Averaging all classification scores...")
+    classification_scores = pd.DataFrame(columns=["Average"] + TASK_LIST_CLASSIFICATION)
+    for task in TASK_LIST_CLASSIFICATION:
+        with open(os.path.join(output_dir, f"{task}.json")) as f:
+            task_scores = json.load(f)
+        if "en" in task_scores["test"]:
+            classification_scores.at[0, task] = task_scores["test"]["en"]["main_score"] * 100
+        else:
+            classification_scores.at[0, task] = task_scores["test"]["main_score"] * 100 
+    classification_scores["Average"] = classification_scores[TASK_LIST_CLASSIFICATION].mean(axis=1)
+    classification_scores.to_csv(os.path.join(output_dir, "scores_classification.csv"))
+
+    print("## Averaging all STS scores...")
+    sts_scores = pd.DataFrame(columns=["Average"] + TASK_LIST_STS)
+    for task in TASK_LIST_STS:
+        with open(os.path.join(output_dir, f"{task}.json")) as f:
+            task_scores = json.load(f)
+        if "en-en" in task_scores["test"]:
+            sts_scores.at[0, task] = task_scores["test"]["en-en"]["cos_sim"]["spearman"] * 100
+        else:
+            sts_scores.at[0, task] = task_scores["test"]["cos_sim"]["spearman"] * 100
+    sts_scores["Average"] = sts_scores[TASK_LIST_STS].mean(axis=1)
+    sts_scores.to_csv(os.path.join(output_dir, "scores_sts.csv"))
+
+    print("## Done...")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LASER: Evaluate on MTEB benchmarks")
     parser.add_argument(
@@ -114,3 +156,4 @@ if __name__ == "__main__":
     
     model = CustomModel(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
     evaluation.run(model, output_folder=args.output_dir)
+    average_scores(args.output_dir)
