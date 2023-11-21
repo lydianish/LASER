@@ -1,21 +1,22 @@
-import argparse
+import argparse, os
 from mteb import MTEB
 from embed import SentenceEncoder
 import sentencepiece as spm
 from lib.text_processing import PreprocessLine
+from lib.custom_tokenizers import CustomTokenizer, SUPPORTED_TOKENIZERS
 
-class MyModel(SentenceEncoder):
+class CustomModel(SentenceEncoder):
     def __init__(
         self,
         model_path,
-        spm_model,
         max_sentences=None,
         max_tokens=None,
         vocab=None,
         cpu=False,
         fp16=False,
         verbose=False,
-        sort_kind="quicksort"
+        sort_kind="quicksort",
+        tokenizer="spm"
     ):
         super().__init__(
             model_path=model_path, 
@@ -27,7 +28,7 @@ class MyModel(SentenceEncoder):
             verbose=verbose,
             sort_kind=sort_kind,
         )
-        self.spm_model = spm.SentencePieceProcessor(model_file=spm_model)
+        self.tokenizer = CustomTokenizer(tokenizer)
 
     def encode(self, sentences, batch_size=32, **kwargs):
         """
@@ -40,8 +41,8 @@ class MyModel(SentenceEncoder):
             `List[np.ndarray]` or `List[tensor]`: List of embeddings for the given sentences
         """
         preprocessed_sentences = [ PreprocessLine(s) for s in sentences ]
-        spm_sentences = [ " ".join(s) for s in self.spm_model.encode_as_pieces(preprocessed_sentences) ]
-        embeddings = super().encode_sentences(spm_sentences)
+        tokenized_sentences = [ self.tokenizer.tokenize(s) for s in preprocessed_sentences ]
+        embeddings = super().encode_sentences(tokenized_sentences)
         return embeddings
 
 if __name__ == "__main__":
@@ -50,10 +51,10 @@ if __name__ == "__main__":
         "--encoder", type=str, required=True, help="encoder to be used"
         )
     parser.add_argument(
-        "--vocab", type=str, required=True, help="Use specified vocab file for encoding"
+        "--vocab", type=str, help="Use specified vocab file for encoding"
     )
     parser.add_argument(
-        "--spm-model", type=str, default=None, help="Apply SPM using specified model"
+        "--tokenizer", type=str, default="spm", help=f"tokenizer among {SUPPORTED_TOKENIZERS}"
     )
     parser.add_argument(
         "-o", "--output-dir", required=True, help="Output sentence embeddings"
@@ -66,9 +67,13 @@ if __name__ == "__main__":
     )
     
     args = parser.parse_args()
+    
+    assert args.tokenizer in SUPPORTED_TOKENIZERS, f"The tokenizer {args.tokenizer} is unknown. Expected values are {SUPPORTED_TOKENIZERS}."
+        
     if args.english_only:
         evaluation = MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"])
     else:
         evaluation = MTEB(tasks=["BUCC"])
-    model = MyModel(args.encoder, spm_model=args.spm_model, vocab=args.vocab, verbose=args.verbose)
+    
+    model = CustomModel(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
     evaluation.run(model, output_folder=args.output_dir)

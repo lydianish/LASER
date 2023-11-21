@@ -10,15 +10,6 @@ tasks/xnli/XNLI-1.0*
 tasks/xnli/multinli_1.0*
 .??*swp
 .idea
-data/*
-*.pt
-*.cvocab
-*.fcodes
-*.spm
-*.log
-*.csv
-*.ipynb
-*.png
-*quantiles.*
-*rocsmt*
+data
+_scores
 mteb
