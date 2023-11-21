@@ -5,6 +5,43 @@ import sentencepiece as spm
 from lib.text_processing import PreprocessLine
 from lib.custom_tokenizers import CustomTokenizer, SUPPORTED_TOKENIZERS
 
+TASK_LIST_CLASSIFICATION = [
+    "AmazonCounterfactualClassification",
+    "AmazonReviewsClassification",
+    "Banking77Classification",
+    "EmotionClassification",
+    "MassiveIntentClassification",
+    "MassiveScenarioClassification",
+    "MTOPDomainClassification",
+    "MTOPIntentClassification",
+    "ToxicConversationsClassification",
+    "TweetSentimentExtractionClassification",
+]
+
+TASK_LIST_PAIR_CLASSIFICATION = [
+    "SprintDuplicateQuestions",
+    "TwitterSemEval2015",
+    "TwitterURLCorpus",
+]
+
+TASK_LIST_STS = [
+    "BIOSSES",
+    "SICK-R",
+    "STS12",
+    "STS13",
+    "STS14",
+    "STS15",
+    "STS16",
+    "STS17",
+    "STSBenchmark",
+]
+
+TASK_LIST = (
+    TASK_LIST_PAIR_CLASSIFICATION
+    + TASK_LIST_CLASSIFICATION
+    + TASK_LIST_STS
+)
+
 class CustomModel(SentenceEncoder):
     def __init__(
         self,
