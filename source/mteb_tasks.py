@@ -4,7 +4,7 @@ from embed import SentenceEncoder
 import sentencepiece as spm
 from lib.text_processing import PreprocessLine
 from lib.custom_tokenizers import CustomTokenizer, SUPPORTED_TOKENIZERS
-import pandas as pd
+import numpy as np
 
 TASK_LIST_CLASSIFICATION = [
     "AmazonCounterfactualClassification",
@@ -89,37 +89,46 @@ class CustomModel(SentenceEncoder):
 
 def average_scores(output_dir):
     print("## Averaging all pair classification scores...")
-    pair_classification_scores = pd.DataFrame(columns=["Average"] + TASK_LIST_PAIR_CLASSIFICATION)
+    pair_classification_scores = {}
+    cumul_score = 0
     for task in TASK_LIST_PAIR_CLASSIFICATION:
         with open(os.path.join(output_dir, f"{task}.json")) as f:
             task_scores = json.load(f)
-        pair_classification_scores.at[0, task] = task_scores["test"]["cos_sim"]["ap"] * 100
-    pair_classification_scores["Average"] = pair_classification_scores[TASK_LIST_PAIR_CLASSIFICATION].mean(axis=1)
-    pair_classification_scores.to_csv(os.path.join(output_dir, "scores_pair_classification.csv"))
+        pair_classification_scores[task] = task_scores["test"]["cos_sim"]["ap"] * 100
+        cumul_score += pair_classification_scores[task]
+    pair_classification_scores["Average"] = cumul_score / len(TASK_LIST_PAIR_CLASSIFICATION)
+    with open(os.path.join(output_dir, "scores_pair_classification.json"), 'w') as f:
+        json.dump(pair_classification_scores, f)
 
     print("## Averaging all classification scores...")
-    classification_scores = pd.DataFrame(columns=["Average"] + TASK_LIST_CLASSIFICATION)
+    classification_scores = {}
+    cumul_score = 0
     for task in TASK_LIST_CLASSIFICATION:
         with open(os.path.join(output_dir, f"{task}.json")) as f:
             task_scores = json.load(f)
         if "en" in task_scores["test"]:
-            classification_scores.at[0, task] = task_scores["test"]["en"]["main_score"] * 100
+            classification_scores[task] = task_scores["test"]["en"]["main_score"] * 100
         else:
-            classification_scores.at[0, task] = task_scores["test"]["main_score"] * 100 
-    classification_scores["Average"] = classification_scores[TASK_LIST_CLASSIFICATION].mean(axis=1)
-    classification_scores.to_csv(os.path.join(output_dir, "scores_classification.csv"))
+            classification_scores[task] = task_scores["test"]["main_score"] * 100
+        cumul_score += classification_scores[task]
+    classification_scores["Average"] = cumul_score / len(TASK_LIST_CLASSIFICATION)
+    with open(os.path.join(output_dir, "scores_classification.json"), 'w') as f:
+        json.dump(classification_scores, f)
 
     print("## Averaging all STS scores...")
-    sts_scores = pd.DataFrame(columns=["Average"] + TASK_LIST_STS)
+    sts_scores = {}
+    cumul_score = 0
     for task in TASK_LIST_STS:
         with open(os.path.join(output_dir, f"{task}.json")) as f:
             task_scores = json.load(f)
         if "en-en" in task_scores["test"]:
-            sts_scores.at[0, task] = task_scores["test"]["en-en"]["cos_sim"]["spearman"] * 100
+            sts_scores[task] = task_scores["test"]["en-en"]["cos_sim"]["spearman"] * 100
         else:
-            sts_scores.at[0, task] = task_scores["test"]["cos_sim"]["spearman"] * 100
-    sts_scores["Average"] = sts_scores[TASK_LIST_STS].mean(axis=1)
-    sts_scores.to_csv(os.path.join(output_dir, "scores_sts.csv"))
+            sts_scores[task] = task_scores["test"]["cos_sim"]["spearman"] * 100
+        cumul_score += sts_scores[task]
+    sts_scores["Average"] = cumul_score / len(TASK_LIST_STS)
+    with open(os.path.join(output_dir, "scores_sts.json"), 'w') as f:
+        json.dump(sts_scores, f)
 
     print("## Done...")
 
