@@ -78,10 +78,17 @@ corpus_part="devtest"
 # note: example evaluation script expects format: basedir/corpus/corpus_part/lang.corpus_part
 
 corpus="rocsmt"
+# corpus="flores200/5langs"
 corpus_part="test"
 ddir=/home/lnishimw/scratch/datasets
-languages="ref.fr,ref.de,ref.cs,ref.uk,ref.ru,raw.en"
-target_lang="norm.en"
+languages="ref.fr,ref.de,ref.cs,ref.uk,ref.ru"
+# languages="fra_Latn,deu_Latn,ces_Latn,ukr_Cyrl,rus_Cyrl,eng_Latn_ugc"
+target_lang="raw.en,norm.en"
+# target_lang="eng_Latn_ugc,eng_Latn"
+target_model=$EXPERIMENTS/robust-embeddings/laser/experiment_024_jz/checkpoints/roberta-student/checkpoint_best.pt
+target_tok=$HOME/data-preparation/src/roberta-tokenizer.py
+# target_vocab=$DATASETS/oscar/mini/4M/bin/charobertaugc-charobertastd/dict.charobertaugc.txt
+target_vocab=$DATASETS/oscar/mini/4M/bin/robertaugc-laserstd/dict.robertaugc.txt
 
 echo " - calculating xsim"
 python3 $LASER/source/eval.py                \
@@ -92,5 +99,9 @@ python3 $LASER/source/eval.py                \
     --src-encoder   $LASER/models/laser2.pt  \
     --src-spm-model $LASER/models/laser2.spm \
     --src-langs $languages      \
-    --output-dir /home/lnishimw/scratch/LASER/tasks/xsim/rsim_5      \
-    --tgt-langs $target_lang --verbose --cosine-distances
+    --output-dir /home/lnishimw/scratch/LASER/tasks/xsim/_scores/xsim_lc_5      \
+    --tgt-langs $target_lang --verbose \
+    --tgt-encoder $target_model \
+    --tgt-tokenizer $target_tok \
+    --tgt-vocab-file $target_vocab \
+     # --cosine-distances \
