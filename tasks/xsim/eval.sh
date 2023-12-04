@@ -20,7 +20,7 @@ if [ -z ${LASER} ] ; then
   exit
 fi
 
-ddir="${LASER}/data"
+ddir="${DATASETS}"
 cd $ddir  # move to data directory
 
 if [ ! -d $ddir/flores200 ] ; then
@@ -67,13 +67,15 @@ corpus="flores200"
 corpus_part="devtest"
 
 languages=""
-for file in $LASER/data/$corpus/$corpus_part/*
+for file in $ddir/$corpus/$corpus_part/*
 do
     lang=${file##*/} # remove parent path
     languages=$languages${lang%.*}, # remove extension
 done
 languages=${languages%,} # remove final comma
 languages=${languages//eng_Latn,/} # remove English from source languages
+
+target_lang="eng_Latn"
 
 # note: example evaluation script expects format: basedir/corpus/corpus_part/lang.corpus_part
 
@@ -86,6 +88,6 @@ python3 $LASER/source/eval.py                \
     --src-encoder   $LASER/models/laser2.pt  \
     --src-spm-model $LASER/models/laser2.spm \
     --src-langs $languages      \
-    --output-dir /home/lnishimw/scratch/LASER/tasks/xsim/_scores/      \
+    --output-dir $LASER/tasks/xsim/_scores/      \
     --tgt-langs $target_lang --verbose \
-     # --cosine-distances \
+    --cosine-distances \

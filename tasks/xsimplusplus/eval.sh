@@ -20,7 +20,7 @@ if [ -z ${LASER} ] ; then
   exit
 fi
 
-ddir="${LASER}/data"
+ddir="${DATASETS}"
 cd $ddir  # move to data directory
 
 if [ ! -d $ddir/flores200 ] ; then
@@ -77,7 +77,7 @@ download "eng_Latn_augmented.$corpus_part" $augmented_dir
 download "eng_Latn_errtype.$corpus_part.json" $augmented_dir
 
 languages=""
-for file in $LASER/data/$corpus/$corpus_part/*
+for file in $ddir/$corpus/$corpus_part/*
 do
     lang=${file##*/} # remove parent path
     languages=$languages${lang%.*}, # remove extension
@@ -98,5 +98,5 @@ python3 $LASER/source/eval.py                \
     --src-langs $languages      \
     --tgt-langs eng_Latn \
     --tgt-aug-langs eng_Latn \
-    --output-dir /home/lnishimw/scratch/LASER/tasks/xsimplusplus/xsimpp      \
+    --output-dir $LASER/tasks/xsimplusplus/_scores/      \
     --verbose
