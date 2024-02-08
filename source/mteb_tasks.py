@@ -91,42 +91,54 @@ def average_scores(output_dir):
     print("## Averaging all pair classification scores...")
     pair_classification_scores = {}
     cumul_score = 0
+    n_tasks = 0
     for task in TASK_LIST_PAIR_CLASSIFICATION:
-        with open(os.path.join(output_dir, f"{task}.json")) as f:
-            task_scores = json.load(f)
-        pair_classification_scores[task] = task_scores["test"]["cos_sim"]["ap"] * 100
-        cumul_score += pair_classification_scores[task]
-    pair_classification_scores["Average"] = cumul_score / len(TASK_LIST_PAIR_CLASSIFICATION)
+        score_file = os.path.join(output_dir, f"{task}.json")
+        if os.path.exists(score_file):
+            with open(os.path.join(output_dir, f"{task}.json")) as f:
+                task_scores = json.load(f)
+            pair_classification_scores[task] = task_scores["test"]["cos_sim"]["ap"] * 100
+            cumul_score += pair_classification_scores[task]
+            n_tasks += 1
+    pair_classification_scores["Average"] = cumul_score / n_tasks if n_tasks else 0
     with open(os.path.join(output_dir, "scores_pair_classification.json"), 'w') as f:
         json.dump(pair_classification_scores, f)
 
     print("## Averaging all classification scores...")
     classification_scores = {}
     cumul_score = 0
+    n_tasks = 0
     for task in TASK_LIST_CLASSIFICATION:
-        with open(os.path.join(output_dir, f"{task}.json")) as f:
-            task_scores = json.load(f)
-        if "en" in task_scores["test"]:
-            classification_scores[task] = task_scores["test"]["en"]["main_score"] * 100
-        else:
-            classification_scores[task] = task_scores["test"]["main_score"] * 100
-        cumul_score += classification_scores[task]
-    classification_scores["Average"] = cumul_score / len(TASK_LIST_CLASSIFICATION)
+        score_file = os.path.join(output_dir, f"{task}.json")
+        if os.path.exists(score_file):
+            with open(os.path.join(output_dir, f"{task}.json")) as f:
+                task_scores = json.load(f)
+            if "en" in task_scores["test"]:
+                classification_scores[task] = task_scores["test"]["en"]["main_score"] * 100
+            else:
+                classification_scores[task] = task_scores["test"]["main_score"] * 100
+            cumul_score += classification_scores[task]
+            n_tasks += 1
+    classification_scores["Average"] = cumul_score / n_tasks if n_tasks else 0
     with open(os.path.join(output_dir, "scores_classification.json"), 'w') as f:
         json.dump(classification_scores, f)
 
     print("## Averaging all STS scores...")
     sts_scores = {}
     cumul_score = 0
+    n_tasks = 0
     for task in TASK_LIST_STS:
-        with open(os.path.join(output_dir, f"{task}.json")) as f:
-            task_scores = json.load(f)
-        if "en-en" in task_scores["test"]:
-            sts_scores[task] = task_scores["test"]["en-en"]["cos_sim"]["spearman"] * 100
-        else:
-            sts_scores[task] = task_scores["test"]["cos_sim"]["spearman"] * 100
-        cumul_score += sts_scores[task]
-    sts_scores["Average"] = cumul_score / len(TASK_LIST_STS)
+        score_file = os.path.join(output_dir, f"{task}.json")
+        if os.path.exists(score_file):
+            with open(os.path.join(output_dir, f"{task}.json")) as f:
+                task_scores = json.load(f)
+            if "en-en" in task_scores["test"]:
+                sts_scores[task] = task_scores["test"]["en-en"]["cos_sim"]["spearman"] * 100
+            else:
+                sts_scores[task] = task_scores["test"]["cos_sim"]["spearman"] * 100
+            cumul_score += sts_scores[task]
+            n_tasks += 1
+    sts_scores["Average"] = cumul_score / n_tasks if n_tasks else 0
     with open(os.path.join(output_dir, "scores_sts.json"), 'w') as f:
         json.dump(sts_scores, f)
 
