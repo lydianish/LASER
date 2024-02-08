@@ -153,6 +153,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--english-only", action="store_true", help="Evaluate on tasks that require English-only encoder"
     )
+    parser.add_argument(
+        "--ugc-only", action="store_true", help="Evaluate on UGC tasks that require English-only encoder"
+    )
     
     args = parser.parse_args()
     
@@ -160,8 +163,11 @@ if __name__ == "__main__":
         
     if args.english_only:
         evaluation = MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"])
+    elif args.ugc_only:
+        evaluation = MTEB(tasks=["TweetSentimentExtractionClassification", "TwitterSemEval2015", "TwitterURLCorpus", "STSBenchmark"])
     else:
         evaluation = MTEB(tasks=["BUCC"])
+        
     
     model = CustomModel(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
     evaluation.run(model, output_folder=args.output_dir)
