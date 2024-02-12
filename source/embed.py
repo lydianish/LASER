@@ -227,10 +227,11 @@ class LaserTransformerEncoder(laser_transformer.LaserTransformerEncoder):
         for key in list(state_dict["model"].keys()):
             if not key.startswith(
                 (
-                    "encoder.layer_norm",
-                    "encoder.layers",
-                    "encoder.embed",
                     "encoder.version",
+                    "encoder.embed_",
+                    "encoder.layernorm_",
+                    "encoder.layers",
+                    "encoder.layer_norm",
                     "encoder.output_projection"
                 )
             ):
