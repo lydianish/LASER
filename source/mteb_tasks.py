@@ -1,10 +1,7 @@
 import argparse, os, json
 from mteb import MTEB
-from embed import SentenceEncoder
-import sentencepiece as spm
-from lib.text_processing import PreprocessLine
-from lib.custom_tokenizers import CustomTokenizer, SUPPORTED_TOKENIZERS
-import numpy as np
+from rolaser import RoLaserEncoder
+from lib.custom_tokenizers import SUPPORTED_TOKENIZERS
 
 TASK_LIST_CLASSIFICATION = [
     "AmazonCounterfactualClassification",
@@ -47,45 +44,6 @@ TASK_LIST_S2S_ENGLISH = (
     + TASK_LIST_STS
 )
 
-class CustomModel(SentenceEncoder):
-    def __init__(
-        self,
-        model_path,
-        max_sentences=None,
-        max_tokens=None,
-        vocab=None,
-        cpu=False,
-        fp16=False,
-        verbose=False,
-        sort_kind="quicksort",
-        tokenizer="spm"
-    ):
-        super().__init__(
-            model_path=model_path, 
-            max_sentences=max_sentences, 
-            max_tokens=max_tokens,
-            vocab=vocab,
-            cpu=cpu,
-            fp16=fp16,
-            verbose=verbose,
-            sort_kind=sort_kind,
-        )
-        self.tokenizer = CustomTokenizer(tokenizer)
-
-    def encode(self, sentences, batch_size=32, **kwargs):
-        """
-        Returns a list of embeddings for the given sentences.
-        Args:
-            sentences (`List[str]`): List of sentences to encode
-            batch_size (`int`): Batch size for the encoding
-
-        Returns:
-            `List[np.ndarray]` or `List[tensor]`: List of embeddings for the given sentences
-        """
-        preprocessed_sentences = [ PreprocessLine(s) for s in sentences ]
-        tokenized_sentences = [ self.tokenizer.tokenize(s) for s in preprocessed_sentences ]
-        embeddings = super().encode_sentences(tokenized_sentences)
-        return embeddings
 
 def average_scores(output_dir):
     print("## Averaging all pair classification scores...")
@@ -181,6 +139,6 @@ if __name__ == "__main__":
         evaluation = MTEB(tasks=["BUCC"])
         
     
-    model = CustomModel(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
+    model = RoLaserEncoder(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
     evaluation.run(model, output_folder=args.output_dir)
     average_scores(args.output_dir)
