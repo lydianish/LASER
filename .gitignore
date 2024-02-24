@@ -12,4 +12,4 @@ tasks/xnli/multinli_1.0*
 .idea
 data
 _scores
-draft.ipynb
+draft*
