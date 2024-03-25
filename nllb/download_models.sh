@@ -14,12 +14,8 @@
 #
 # This bash script installs NLLB LASER2 and LASER3 sentence encoders from Amazon s3
 
-if [ -z ${LASER} ] ; then 
-  echo "Please set the environment variable 'LASER'"
-  exit
-fi
-
-mdir="${LASER}/models"
+# default to download to current directory
+mdir=$(pwd)
 
 echo "Directory for model download: ${mdir}"
 
@@ -57,15 +53,10 @@ fi
 download "laser2.spm"
 download "laser2.cvocab"
 
-DOWNLOAD_LASER3=true
-
 # LASER3 models
 if [ ! $# -eq 0 ]; then
     # chosen model subset from command line
     langs=$@
-    if [[ "$#" -eq 1 && "$1" == "no_laser3" ]]; then
-        DOWNLOAD_LASER3=false
-    fi
 else
     # all available LASER3 models
     langs=(ace_Latn aka_Latn als_Latn amh_Ethi asm_Beng awa_Deva ayr_Latn azb_Arab azj_Latn bak_Cyrl bam_Latn ban_Latn bel_Cyrl \
@@ -87,14 +78,12 @@ spm_langs=(amh_Ethi ayr_Latn azj_Latn bak_Cyrl bel_Cyrl bod_Tibt ckb_Arab crh_La
            mya_Mymr pbt_Arab pes_Arab prs_Arab sat_Beng scn_Latn srd_Latn szl_Latn taq_Latn tgk_Cyrl tir_Ethi \
            tzm_Tfng vec_Latn)
 
-if [ $DOWNLOAD_LASER3 == true ]; then
-    for lang in ${langs[@]}; do
-        download "laser3-$lang.v$version.pt";
-        for spm_lang in ${spm_langs[@]}; do
-            if [[ $lang == $spm_lang ]] ; then
-                download "laser3-$lang.v$version.spm";
-                download "laser3-$lang.v$version.cvocab";
-            fi 
-        done
+for lang in ${langs[@]}; do
+    download "laser3-$lang.v$version.pt";
+    for spm_lang in ${spm_langs[@]}; do
+        if [[ $lang == $spm_lang ]] ; then
+            download "laser3-$lang.v$version.spm";
+            download "laser3-$lang.v$version.cvocab";
+        fi 
     done
-fi
+done
