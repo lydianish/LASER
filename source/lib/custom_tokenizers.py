@@ -1,3 +1,20 @@
+#!/usr/bin/python
+# Copyright (c) Lydia Nishimwe.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+#
+# LASER  Language-Agnostic SEntence Representations
+# is a toolkit to calculate multilingual sentence embeddings
+# and to use them for document classification, bitext filtering
+# and mining
+#
+# --------------------------------------------------------
+#
+# Implemenation of CustomTokenizer class for using LASER, RoLASER and c-RoLASER models
+# From the paper "Making Sentence Embeddings Robust to User-Generated Content" by Nishimwe et al., 2024
+
 import os
 from transformers import RobertaTokenizer, BertTokenizer
 import sentencepiece as spm

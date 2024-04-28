@@ -1,3 +1,20 @@
+#!/usr/bin/python
+# Copyright (c) Lydia Nishimwe.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+#
+# LASER  Language-Agnostic SEntence Representations
+# is a toolkit to calculate multilingual sentence embeddings
+# and to use them for document classification, bitext filtering
+# and mining
+#
+# --------------------------------------------------------
+#
+# Python script for evaluating LASER models on the Massive Text Embedding Benchmark
+# From the paper "Making Sentence Embeddings Robust to User-Generated Content" by Nishimwe et al., 2024
+
 import argparse, os, json
 from mteb import MTEB
 from rolaser import RoLaserEncoder
