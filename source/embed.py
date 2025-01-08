@@ -189,10 +189,9 @@ class SentenceEncoder:
 class HuggingFaceEncoder():
     def __init__(self, encoder_name: str, verbose=False):
         from sentence_transformers import SentenceTransformer
-        encoder = f"sentence-transformers/{encoder_name}"
         if verbose:
-            logger.info(f"loading HuggingFace encoder: {encoder}")
-        self.encoder = SentenceTransformer(encoder)
+            logger.info(f"loading HuggingFace encoder: {encoder_name}")
+        self.encoder = SentenceTransformer(encoder_name)
 
     def encode_sentences(self, sentences):
         return self.encoder.encode(sentences)
