@@ -18,6 +18,7 @@
 import argparse, os, json
 from mteb import MTEB
 from rolaser import RoLaserEncoder
+from sentence_transformers import SentenceTransformer
 from lib.custom_tokenizers import SUPPORTED_TOKENIZERS
 
 TASK_LIST_CLASSIFICATION = [
@@ -123,8 +124,11 @@ def average_scores(output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LASER: Evaluate on MTEB benchmarks")
     parser.add_argument(
-        "--encoder", type=str, required=True, help="encoder to be used"
+        "--encoder", type=str, required=True, help="name or path of encoder to be used"
         )
+    parser.add_argument(
+        "--huggingface", action="store_true", help="Whether the encoder is a Hugging Face SentenceTransformer model"
+    )
     parser.add_argument(
         "--vocab", type=str, help="Use specified vocab file for encoding"
     )
@@ -138,24 +142,38 @@ if __name__ == "__main__":
         "-v", "--verbose", action="store_true", help="Detailed output"
     )
     parser.add_argument(
-        "--english-only", action="store_true", help="Evaluate on tasks that require English-only encoder"
+        "--english-tasks", action="store_true", help="Evaluate on English-only tasks"
     )
     parser.add_argument(
-        "--ugc-only", action="store_true", help="Evaluate on UGC tasks that require English-only encoder"
+        "--ugc-tasks", action="store_true", help="Evaluate on UGC tasks"
     )
+    parser.add_argument(
+        "--bucc-tasks", action="store_true", help="Evaluate on BUCC tasks"
+    )
+    parser.add_argument(
+        "--langs", type=str, nargs="+", help="Languages to evaluate on", default=["en"]
+    )
+    args = parser.parse_args() 
     
-    args = parser.parse_args()
+    if not args.huggingface:
+        assert args.vocab is not None, "Vocab file is required for RoLASER encoder"
+        assert args.tokenizer is not None, "Tokenizer is required for RoLASER encoder"
+        assert args.tokenizer in SUPPORTED_TOKENIZERS, f"The tokenizer {args.tokenizer} is unknown. Expected values are {SUPPORTED_TOKENIZERS}."
+
     
-    assert args.tokenizer in SUPPORTED_TOKENIZERS, f"The tokenizer {args.tokenizer} is unknown. Expected values are {SUPPORTED_TOKENIZERS}."
-        
-    if args.english_only:
-        evaluation = MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"])
-    elif args.ugc_only:
-        evaluation = MTEB(tasks=["TweetSentimentExtractionClassification", "TwitterSemEval2015", "TwitterURLCorpus", "STSBenchmark"])
+    if args.huggingface:
+        model = SentenceTransformer(args.encoder)
     else:
-        evaluation = MTEB(tasks=["BUCC"])
-        
+        model = RoLaserEncoder(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
     
-    model = RoLaserEncoder(args.encoder, vocab=args.vocab, verbose=args.verbose, tokenizer=args.tokenizer)
-    evaluation.run(model, output_folder=args.output_dir)
-    average_scores(args.output_dir)
+    evaluations = []
+    if args.english_tasks:
+        evaluations.append(MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"]))
+    if args.ugc_tasks:
+        evaluations.append(MTEB(tasks=["TweetSentimentExtractionClassification", "TwitterSemEval2015", "TwitterURLCorpus", "STSBenchmark"]))
+    if args.bucc_tasks:
+        evaluations.append(MTEB(tasks=["BUCC"]))
+
+    for evaluation in evaluations:
+        evaluation.run(model, output_folder=args.output_dir)
+        average_scores(args.output_dir)
