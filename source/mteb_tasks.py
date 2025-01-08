@@ -148,7 +148,7 @@ if __name__ == "__main__":
         "--ugc-tasks", action="store_true", help="Evaluate on UGC tasks"
     )
     parser.add_argument(
-        "--bucc-tasks", action="store_true", help="Evaluate on BUCC tasks"
+        "--mining-tasks", action="store_true", help="Evaluate on mining tasks"
     )
     parser.add_argument(
         "--langs", type=str, nargs="+", help="Languages to evaluate on", default=["en"]
@@ -171,9 +171,10 @@ if __name__ == "__main__":
         evaluations.append(MTEB(task_types=["PairClassification", "Classification", "STS"], task_categories=["s2s"], task_langs=["en"]))
     if args.ugc_tasks:
         evaluations.append(MTEB(tasks=["TweetSentimentExtractionClassification", "TwitterSemEval2015", "TwitterURLCorpus", "STSBenchmark"]))
-    if args.bucc_tasks:
-        evaluations.append(MTEB(tasks=["BUCC"]))
+    if args.mining_tasks:
+        evaluations.append(MTEB(tasks=["BUCC"], task_langs=["fr-en"]))
 
     for evaluation in evaluations:
         evaluation.run(model, output_folder=args.output_dir)
-        average_scores(args.output_dir)
+    
+    # average_scores(args.output_dir)
