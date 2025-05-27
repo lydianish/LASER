@@ -48,48 +48,64 @@ class Eval:
         self.min_sents = args.min_sents
         self.index_comparison = args.index_comparison
         self.emb_dimension = args.embedding_dimension
-        self.encoder_args = {
-            k: v
-            for k, v in args._get_kwargs()
-            if k in ["max_sentences", "max_tokens", "cpu", "sort_kind", "verbose"]
-        }
-        self.src_bpe_codes = args.src_bpe_codes
-        self.tgt_bpe_codes = args.tgt_bpe_codes
-        self.src_spm_model = args.src_spm_model
-        self.tgt_spm_model = args.tgt_spm_model
-        self.src_tokenizer = args.src_tokenizer
-        self.tgt_tokenizer = args.tgt_tokenizer
-        self.src_vocab_file = args.src_vocab_file
-        self.tgt_vocab_file = args.tgt_vocab_file
-
-        logger.info("loading src encoder")
-        self.src_encoder = load_model(
-            args.src_encoder,
-            self.src_spm_model,
-            self.src_bpe_codes,
-            custom_tokenizer=self.src_tokenizer,
-            custom_vocab_file=self.src_vocab_file,
-            hugging_face=args.use_hugging_face,
-            **self.encoder_args,
-        )
-        if args.tgt_encoder:
-            logger.info("loading tgt encoder")
-            self.tgt_encoder = load_model(
-                args.tgt_encoder,
-                self.tgt_spm_model,
-                self.tgt_bpe_codes,
-                custom_tokenizer=self.tgt_tokenizer,
-                custom_vocab_file=self.tgt_vocab_file,
+        self.offline_embeddings = args.offline_embeddings
+        
+        if self.offline_embeddings:
+            assert args.embed_dir is not None, "Please provide --embed-dir for offline embeddings"
+            print("Using offline embeddings, no need to load encoders")
+            # self.encoder_args = {}
+            # self.src_bpe_codes = None
+            # self.tgt_bpe_codes = None
+            # self.src_spm_model = None
+            # self.tgt_spm_model = None
+            # self.src_tokenizer = None
+            # self.tgt_tokenizer = None
+            # self.src_vocab_file = None
+            # self.tgt_vocab_file = None
+            # self.src_encoder = None
+            # self.tgt_encoder = None
+        else:
+            self.encoder_args = {
+                k: v
+                for k, v in args._get_kwargs()
+                if k in ["max_sentences", "max_tokens", "cpu", "sort_kind", "verbose"]
+            }
+            self.src_bpe_codes = args.src_bpe_codes
+            self.tgt_bpe_codes = args.tgt_bpe_codes
+            self.src_spm_model = args.src_spm_model
+            self.tgt_spm_model = args.tgt_spm_model
+            self.src_tokenizer = args.src_tokenizer
+            self.tgt_tokenizer = args.tgt_tokenizer
+            self.src_vocab_file = args.src_vocab_file
+            self.tgt_vocab_file = args.tgt_vocab_file
+            logger.info("loading src encoder")
+            self.src_encoder = load_model(
+                args.src_encoder,
+                self.src_spm_model,
+                self.src_bpe_codes,
+                custom_tokenizer=self.src_tokenizer,
+                custom_vocab_file=self.src_vocab_file,
                 hugging_face=args.use_hugging_face,
                 **self.encoder_args,
             )
-        else:
-            logger.info("encoding tgt using src encoder")
-            self.tgt_encoder = self.src_encoder
-            self.tgt_bpe_codes = self.src_bpe_codes
-            self.tgt_spm_model = self.src_spm_model
-            self.tgt_tokenizer = self.src_tokenizer
-            self.tgt_vocab_file = self.src_vocab_file
+            if args.tgt_encoder:
+                logger.info("loading tgt encoder")
+                self.tgt_encoder = load_model(
+                    args.tgt_encoder,
+                    self.tgt_spm_model,
+                    self.tgt_bpe_codes,
+                    custom_tokenizer=self.tgt_tokenizer,
+                    custom_vocab_file=self.tgt_vocab_file,
+                    hugging_face=args.use_hugging_face,
+                    **self.encoder_args,
+                )
+            else:
+                logger.info("encoding tgt using src encoder")
+                self.tgt_encoder = self.src_encoder
+                self.tgt_bpe_codes = self.src_bpe_codes
+                self.tgt_spm_model = self.src_spm_model
+                self.tgt_tokenizer = self.src_tokenizer
+                self.tgt_vocab_file = self.src_vocab_file
         self.nway = args.nway
         self.buffer_size = args.buffer_size
         self.fp16 = args.fp16
@@ -120,22 +136,23 @@ class Eval:
                         with open(f) as fin:
                             newfile.write(fin.read())
                 infile = combined_infile
-            embed_sentences(
-                str(infile),
-                str(outfile),
-                encoder=encoder,
-                spm_model=spm_model,
-                custom_tokenizer=tokenizer,
-                custom_vocab_file=vocab_file,
-                bpe_codes=bpe_codes,
-                token_lang=lang if bpe_codes else "--",
-                buffer_size=self.buffer_size,
-                fp16=self.fp16,
-                **self.encoder_args,
-            )
-            assert (
-                os.path.isfile(outfile) and os.path.getsize(outfile) > 0
-            ), f"Error encoding {infile}"
+            if not self.offline_embeddings:
+                embed_sentences(
+                    str(infile),
+                    str(outfile),
+                    encoder=encoder,
+                    spm_model=spm_model,
+                    custom_tokenizer=tokenizer,
+                    custom_vocab_file=vocab_file,
+                    bpe_codes=bpe_codes,
+                    token_lang=lang if bpe_codes else "--",
+                    buffer_size=self.buffer_size,
+                    fp16=self.fp16,
+                    **self.encoder_args,
+                )
+                assert (
+                    os.path.isfile(outfile) and os.path.getsize(outfile) > 0
+                ), f"Error encoding {infile}"
             emb_data.append([lang, infile, outfile, augjson])
         return emb_data
 
@@ -500,5 +517,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--verbose", action="store_true", help="Detailed output")
     parser.add_argument("--output-dir", type=str, default=None, help="Directory to save output file")
+    parser.add_argument(
+        "--offline-embeddings",
+        action="store_true",
+        help="Use precomputed embeddings instead of encoders, must provide --embed-dir as well",
+    )
     args = parser.parse_args()
     run_eval(args)
