@@ -52,18 +52,18 @@ class Eval:
         
         if self.offline_embeddings:
             assert args.embed_dir is not None, "Please provide --embed-dir for offline embeddings"
-            print("Using offline embeddings, no need to load encoders")
-            # self.encoder_args = {}
-            # self.src_bpe_codes = None
-            # self.tgt_bpe_codes = None
-            # self.src_spm_model = None
-            # self.tgt_spm_model = None
-            # self.src_tokenizer = None
-            # self.tgt_tokenizer = None
-            # self.src_vocab_file = None
-            # self.tgt_vocab_file = None
-            # self.src_encoder = None
-            # self.tgt_encoder = None
+            print(f"Using offline {args.src_encoder} embeddings from {args.embed_dir}.")
+            self.encoder_args = {}
+            self.src_bpe_codes = None
+            self.tgt_bpe_codes = None
+            self.src_spm_model = None
+            self.tgt_spm_model = None
+            self.src_tokenizer = None
+            self.tgt_tokenizer = None
+            self.src_vocab_file = None
+            self.tgt_vocab_file = None
+            self.src_encoder = None
+            self.tgt_encoder = None
         else:
             self.encoder_args = {
                 k: v
